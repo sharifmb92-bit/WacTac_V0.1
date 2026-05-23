@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-color=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>WacTac Pro</title>
+    
+    <!-- Manifiesto PWA embebido para instalación global inmediata -->
+    <link rel="manifest" href='data:application/manifest+json,{"name":"WacTac Pro","short_name":"WacTac","start_url":".","display":"standalone","background_color":"#121212","theme_color":"#121212","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/3239/3239958.png","sizes":"192x192","type":"image/png"}]}'>
+
+    <style>
+        /* Paleta de colores de alto contraste optimizada para cabinas y exteriores */
+        :root {
+            --bg-main: #121212;
+            --bg-card: #1e1e1e;
+            --bg-active: #2d2d2d;
+            --text-main: #f0f0f0;
+            --text-muted: #a0a0a0;
+            --accent-glow: rgba(255, 255, 255, 0.08);
+            --accent-active: #ffffff;
+            --status-online: #2ecc71;
+            --status-talking: #e74c3c;
+            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        header {
+            background-color: var(--bg-card);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--bg-active);
+        }
+
+        header h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .context-tabs {
+            display: flex;
+            background-color: var(--bg-main);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--bg-active);
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background-color: var(--bg-active);
+            color: var(--accent-active);
+        }
+
+        /* Contenedor global de control de canales */
+        .channel-bar {
+            display: flex;
+            align-items: center;
+            background-color: #161616;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+            padding: 0 10px;
+        }
+
+        .channel-selector {
+            display: flex;
+            gap: 10px;
+            padding: 12px 10px;
+            overflow-x: auto;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        .channel-selector::-webkit-scrollbar {
+            display: none;
+        }
+
+        .channel-pill {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .channel-pill.active {
+            background-color: var(--bg-active);
+            color: var(--accent-active);
+            border-color: rgba(255,255,255,0.1);
+        }
+
+        .add-channel-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            padding: 0 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mode-selector {
+            display: flex;
+            background-color: var(--bg-card);
+            margin: 15px 20px 5px 20px;
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .mode-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .mode-btn.active {
+            background-color: var(--bg-active);
+            color: var(--accent-active);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+
+        .main-action-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 10px 20px;
+        }
+
+        .ptt-container {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Botón de transmisión sobredimensionado y optimizado */
+        .ptt-button {
+            width: 210px;
+            height: 210px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #222222, #181818);
+            border: 5px solid var(--bg-active);
+            color: var(--text-main);
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.7);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+            touch-action: none;
+        }
+
+        .ptt-button.transmitting {
+            border-color: var(--status-talking);
+            box-shadow: 0 0 40px rgba(231, 76, 60, 0.4);
+            background: linear-gradient(145deg, #2a1a1a, #1a1212);
+        }
+
+        .ptt-button svg {
+            width: 42px;
+            height: 42px;
+            fill: currentColor;
+            transition: transform 0.15s ease;
+        }
+
+        .ptt-button.transmitting svg {
+            transform: scale(1.1);
+            color: var(--status-talking);
+        }
+
+        .status-text {
+            margin-top: 20px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-align: center;
+            min-height: 24px;
+            letter-spacing: 0.3px;
+        }
+
+        .roster-panel {
+            background-color: var(--bg-card);
+            border-top: 1px solid var(--bg-active);
+            padding: 20px;
+            padding-bottom: calc(20px + var(--safe-area-bottom));
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .roster-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 5px;
+        }
+
+        .member-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .member-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.95rem;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .member-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--status-online);
+            border-radius: 50%;
+            transition: background-color 0.2s ease;
+        }
+
+        .status-dot.talking {
+            background-color: var(--status-talking);
+            animation: pulse 0.8s infinite alternate;
+        }
+
+        .member-status {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .member-status.talking {
+            color: var(--status-talking);
+            font-weight: 600;
+        }
+
+        /* Estilos para el modal global de añadir canales/grupos */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+            padding: 20px;
+        }
+        .modal.open { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            background-color: var(--bg-card);
+            border: 1px solid var(--bg-active);
+            padding: 25px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        .modal-content h3 { margin-bottom: 15px; font-size: 1.2rem; }
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--bg-main);
+            border: 1px solid var(--bg-active);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 1rem;
+            margin-bottom: 20px;
+            outline: none;
+        }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+        .modal-btn.cancel { background: none; color: var(--text-muted); }
+        .modal-btn.confirm { background-color: var(--text-main); color: var(--bg-main); }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.6; }
+            100% { transform: scale(1.3); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>WacTac Pro</h1>
+        <div class="context-tabs">
+            <button class="tab-btn active" id="tabWork" onclick="switchContext('work')">Profesional</button>
+            <button class="tab-btn" id="tabPersonal" onclick="switchContext('personal')">Social</button>
+        </div>
+    </header>
+
+    <div class="channel-bar">
+        <div class="channel-selector" id="channelContainer"></div>
+        <button class="add-channel-btn" onclick="openModal()" title="Añadir nuevo grupo">+</button>
+    </div>
+
+    <div class="mode-selector">
+        <button class="mode-btn active" id="btnModeWalkie" onclick="setMode('walkie')">Modo Walkie (Pulsar)</button>
+        <button class="mode-btn" id="btnModeOpen" onclick="setMode('open')">Modo Abierto (Manos Libres)</button>
+    </div>
+
+    <div class="main-action-area">
+        <div class="ptt-container">
+            <div class="ptt-button" id="pttMainButton">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                </svg>
+                <span id="buttonLabel">MANTENER</span>
+            </div>
+        </div>
+        <div class="status-text" id="statusText">Modo Walkie: Pulsa para hablar</div>
+    </div>
+
+    <div class="roster-panel">
+        <div class="roster-header">
+            <span>Miembros Activos</span>
+            <span id="channelNameDisplay">-</span>
+        </div>
+        <div class="member-list" id="memberListContainer"></div>
+    </div>
+
+    <!-- Modal Dinámico para creación de Canales desde la interfaz -->
+    <div class="modal" id="channelModal">
+        <div class="modal-content">
+            <h3>Crear Nuevo Canal / Grupo</h3>
+            <input type="text" id="newChannelInput" placeholder="Ej. Equipo de Ventas, Familiares, Ruta 3..." maxlength="20">
+            <div class="modal-actions">
+                <button class="modal-btn cancel" onclick="closeModal()">Cancelar</button>
+                <button class="modal-btn confirm" onclick="createNewChannel()">Crear</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- ARQUITECTURA DE DATOS DINÁMICA ---
+        // Se inicializa desde LocalStorage para que los canales creados no se borren.
+        const defaultChannels = {
+            work: {
+                default: '#Canal-General',
+                list: ['#Canal-General', '#Operaciones', '#Urgencias-Tránsito'],
+                users: {
+                    '#Canal-General': [
+                        { name: 'Tú (Usuario)', status: 'Escuchando', isMe: true },
+                        { name: 'Operador_Central', status: 'Escuchando', isMe: false },
+                        { name: 'Unidad_Soporte', status: 'Escuchando', isMe: false }
+                    ],
+                    '#Operaciones': [
+                        { name: 'Tú (Usuario)', status: 'Escuchando', isMe: true },
+                        { name: 'Supervisor_Gral', status: 'Escuchando', isMe: false }
+                    ],
+                    '#Urgencias-Tránsito': [
+                        { name: 'Tú (Usuario)', status: 'Escuchando', isMe: true },
+                        { name: 'Logística_Doble_Turno', status: 'Escuchando', isMe: false }
+                    ]
+                }
+            },
+            personal: {
+                default: '#Grupo-Principal',
+                list: ['#Grupo-Principal', '#Amigos_Cercanos', '#Organización_Eventos'],
+                users: {
+                    '#Grupo-Principal': [
+                        { name: 'Tú', status: 'Escuchando', isMe: true },
+                        { name: 'Contacto_Familia_1', status: 'Escuchando', isMe: false },
+                        { name: 'Contacto_Familia_2', status: 'Escuchando', isMe: false }
+                    ],
+                    '#Amigos_Cercanos': [
+                        { name: 'Tú', status: 'Escuchando', isMe: true },
+                        { name: 'Enlace_Cercano', status: 'Escuchando', isMe: false }
+                    ],
+                    '#Organización_Eventos': [
+                        { name: 'Tú', status: 'Escuchando', isMe: true }
+                    ]
+                }
+            }
+        };
+
+        let channelsData = JSON.parse(localStorage.getItem('wactac_channels')) || defaultChannels;
+
+        // --- ESTADO GLOBAL DE LA APP ---
+        let currentContext = 'work'; 
+        let activeChannel = channelsData[currentContext].default;
+        let currentMode = 'walkie'; 
+        let isTransmitting = false;
+        let simulationInterval = null;
+
+        // Elementos DOM
+        const pttButton = document.getElementById('pttMainButton');
+        const buttonLabel = document.getElementById('buttonLabel');
+        const statusText = document.getElementById('statusText');
+        const channelContainer = document.getElementById('channelContainer');
+        const memberListContainer = document.getElementById('memberListContainer');
+        const channelNameDisplay = document.getElementById('channelNameDisplay');
+        const channelModal = document.getElementById('channelModal');
+        const newChannelInput = document.getElementById('newChannelInput');
+
+        // Sincronizar persistencia local
+        function saveToStorage() {
+            localStorage.setItem('wactac_channels', JSON.stringify(channelsData));
+        }
+
+        // --- MANEJO DE NAVEGACIÓN Y ENTORNO ---
+        function switchContext(context) {
+            currentContext = context;
+            document.getElementById('tabWork').classList.toggle('active', context === 'work');
+            document.getElementById('tabPersonal').classList.toggle('active', context === 'personal');
+            
+            activeChannel = channelsData[context].default || channelsData[context].list[0];
+            renderChannels();
+            renderRoster();
+            if(isTransmitting) stopTransmission();
+        }
+
+        function renderChannels() {
+            channelContainer.innerHTML = '';
+            channelsData[currentContext].list.forEach(channel => {
+                const pill = document.createElement('div');
+                pill.className = `channel-pill ${channel === activeChannel ? 'active' : ''}`;
+                pill.innerText = channel;
+                pill.onclick = () => selectChannel(channel);
+                channelContainer.appendChild(pill);
+            });
+        }
+
+        function selectChannel(channel) {
+            activeChannel = channel;
+            channelsData[currentContext].default = channel;
+            saveToStorage();
+            renderChannels();
+            renderRoster();
+            if(isTransmitting) stopTransmission();
+        }
+
+        function renderRoster() {
+            channelNameDisplay.innerText = activeChannel;
+            memberListContainer.innerHTML = '';
+            
+            const currentUsers = channelsData[currentContext].users[activeChannel] || [{ name: 'Tú', status: 'Escuchando', isMe: true }];
+            currentUsers.forEach(user => {
+                const item = document.createElement('div');
+                item.className = 'member-item';
+                
+                const isTalking = user.status === 'Hablando...';
+                
+                item.innerHTML = `
+                    <div class="member-info">
+                        <div class="status-dot ${isTalking ? 'talking' : ''}"></div>
+                        <span>${user.name}</span>
+                    </div>
+                    <span class="member-status ${isTalking ? 'talking' : ''}" id="${user.isMe ? 'myStatus' : ''}">${user.status}</span>
+                `;
+                memberListContainer.appendChild(item);
+            });
+        }
+
+        // --- GESTIÓN DINÁMICA DE CANALES (MODAL) ---
+        function openModal() { channelModal.classList.add('open'); newChannelInput.focus(); }
+        function closeModal() { channelModal.classList.remove('open'); newChannelInput.value = ''; }
+        
+        function createNewChannel() {
+            let name = newChannelInput.value.trim();
+            if(!name) return;
+            
+            if(!name.startsWith('#')) name = '#' + name;
+            name = name.replace(/\s+/g, '-'); // Formato limpio de canal para telecomunicaciones
+
+            if(!channelsData[currentContext].list.includes(name)) {
+                channelsData[currentContext].list.push(name);
+                channelsData[currentContext].users[name] = [
+                    { name: currentContext === 'work' ? 'Tú (Usuario)' : 'Tú', status: 'Escuchando', isMe: true },
+                    { name: 'Enlace Remoto', status: 'Escuchando', isMe: false }
+                ];
+                saveToStorage();
+                selectChannel(name);
+            }
+            closeModal();
+        }
+
+        // --- LÓGICA DE CONTROL DE TRANSMISIÓN ---
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('btnModeWalkie').classList.toggle('active', mode === 'walkie');
+            document.getElementById('btnModeOpen').classList.toggle('active', mode === 'open');
+
+            if (isTransmitting) stopTransmission();
+
+            if (mode === 'walkie') {
+                buttonLabel.innerText = "MANTENER";
+                statusText.innerText = "Modo Walkie: Pulsa para hablar";
+                setupWalkieEvents();
+            } else {
+                buttonLabel.innerText = "ACTIVAR LÍNEA";
+                statusText.innerText = "Modo Abierto: Manos libres desactivado";
+                setupOpenEvents();
+            }
+        }
+
+        function startTransmission() {
+            if (isTransmitting) return;
+            isTransmitting = true;
+            pttButton.classList.add('transmitting');
+            statusText.innerText = "TRANSMITIENDO AUDIO EN VIVO...";
+            
+            const myStatus = document.getElementById('myStatus');
+            if (myStatus) {
+                myStatus.innerText = "Hablando... ";
+                myStatus.classList.add('talking');
+                myStatus.previousElementSibling.firstElementChild.classList.add('talking');
+            }
+            if (navigator.vibrate) navigator.vibrate(45);
+            
+            // Punto de anclaje para SDK global (WebRTC/Opus): Insertar streaming saliente aquí.
+        }
+
+        function stopTransmission() {
+            if (!isTransmitting) return;
+            isTransmitting = false;
+            pttButton.classList.remove('transmitting');
+            
+            const myStatus = document.getElementById('myStatus');
+            if (myStatus) {
+                myStatus.innerText = "Escuchando";
+                myStatus.classList.remove('talking');
+                myStatus.previousElementSibling.firstElementChild.classList.remove('talking');
+            }
+            
+            if (currentMode === 'walkie') {
+                statusText.innerText = "Listo para transmitir";
+            } else {
+                statusText.innerText = "Línea manos libres cerrada";
+                buttonLabel.innerText = "ACTIVAR LÍNEA";
+            }
+        }
+
+        // Eventos Unificados con protección contra scroll accidental del navegador en ruta
+        function setupWalkieEvents() {
+            pttButton.onmousedown = startTransmission;
+            pttButton.onmouseup = stopTransmission;
+            pttButton.onmouseleave = stopTransmission;
+            pttButton.onclick = null;
+
+            pttButton.ontouchstart = (e) => { if(e.cancelable) e.preventDefault(); startTransmission(); };
+            pttButton.ontouchend = (e) => { if(e.cancelable) e.preventDefault(); stopTransmission(); };
+            pttButton.ontouchcancel = (e) => { if(e.cancelable) e.preventDefault(); stopTransmission(); };
+        }
+
+        function setupOpenEvents() {
+            pttButton.onmousedown = null;
+            pttButton.onmouseup = null;
+            pttButton.onmouseleave = null;
+            pttButton.ontouchstart = null;
+            pttButton.ontouchend = null;
+            pttButton.ontouchcancel = null;
+
+            pttButton.onclick = () => {
+                if (!isTransmitting) {
+                    isTransmitting = true;
+                    pttButton.classList.add('transmitting');
+                    buttonLabel.innerText = "LÍNEA ABIERTA";
+                    statusText.innerText = "CONVERSACIÓN EN DIRECTO (MANOS LIBRES)";
+                    
+                    const myStatus = document.getElementById('myStatus');
+                    if (myStatus) {
+                        myStatus.innerText = "Hablando...";
+                        myStatus.classList.add('talking');
+                        myStatus.previousElementSibling.firstElementChild.classList.add('talking');
+                    }
+                    if (navigator.vibrate) navigator.vibrate([30, 40]);
+                } else {
+                    stopTransmission();
+                }
+            };
+        }
+
+        // --- SIMULADOR GLOBAL DE ACTIVIDAD RADIAL ---
+        function runRealTimeSimulation() {
+            simulationInterval = setInterval(() => {
+                if (isTransmitting) return; 
+                
+                const currentUsers = channelsData[currentContext].users[activeChannel] || [];
+                if (currentUsers.length <= 1) return; 
+                
+                const remoteUsers = currentUsers.filter(u => !u.isMe);
+                if (remoteUsers.length === 0) return;
+                
+                const randomUser = remoteUsers[Math.floor(Math.random() * remoteUsers.length)];
+                
+                if (randomUser.status === 'Escuchando') {
+                    randomUser.status = 'Hablando...';
+                    renderRoster();
+                    
+                    setTimeout(() => {
+                        if (randomUser.status === 'Hablando...') {
+                            randomUser.status = 'Escuchando';
+                            renderRoster();
+                        }
+                    }, 3000);
+                }
+            }, 8000);
+        }
+
+        // Inicialización y registro del Service Worker en línea para cumplimiento PWA
+        renderChannels();
+        renderRoster();
+        setupWalkieEvents();
+        runRealTimeSimulation();
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const swCode = `self.addEventListener('fetch', function(e) { return; });`;
+                const blob = new Blob([swCode], {type: 'text/javascript'});
+                const swUrl = URL.createObjectURL(blob);
+                navigator.serviceWorker.register(swUrl).catch(() => {});
+            });
+        }
+    </script>
+</body>
+</html>
